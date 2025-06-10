@@ -9,6 +9,7 @@ const routes = [
   { href: "/login", label: "Login" },
   { href: "/register", label: "Registrar" },
   { href: "/join", label: "Entrar em Sala" },
+  { href: "/create_room", label: "Criar sala" },
   { href: "/lobby", label: "Lobby" },
   { href: "/room", label: "Sala" },
 ];
