@@ -24,6 +24,7 @@ export default function JoinForm() {
         const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
         token = match ? match[2] : "";
       }
+      
 
       const response = await fetch(
         `http://127.0.0.1:8000/api/bingo-rooms/?room_code=${roomCode}`,
@@ -33,7 +34,7 @@ export default function JoinForm() {
             Authorization: `Token ${token}`,
           },
         }
-      );
+      ); //ok
 
       if (!response.ok) {
         setError("Erro ao buscar sala.");
@@ -47,7 +48,23 @@ export default function JoinForm() {
         setLoading(false);
         return;
       }
+      const joinRoom = await fetch(
+        `http://127.0.1:8000/api/join-room/`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Token ${token}`,
+          },
+          body: JSON.stringify({ room: data[0].id }),
+          method: "POST",
+        }
+      );
       // Sala existe, redireciona para o lobby
+      if (!joinRoom.ok) {
+        setError(joinRoom.statusText || "Erro ao entrar na sala.");
+        setLoading(false);
+        return;
+      };
       router.push(`/lobby?roomCode=${roomCode}&roomId=${data[0].id}`);
     } catch {
       setError("Erro ao conectar com o servidor.");
