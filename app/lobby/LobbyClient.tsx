@@ -50,7 +50,6 @@ export default function LobbyClient() {
         alert("Erro ao iniciar o jogo.");
         return;
       }
-
       const data = await response.json();
       // Redireciona para a página da sala do jogo usando o room uuid retornado
       router.push(`/room?roomCode=${roomCode}&roomId=${data.room}`);
@@ -80,6 +79,9 @@ export default function LobbyClient() {
           return;
         }
         const data = await response.json();
+        localStorage.setItem("bingoCard", data.numbers);
+        document.cookie = `bingoCard=${data.numbers}; path=/;`;
+        
         // Redireciona para a página da sala do jogo usando o room uuid retornado
         router.push(`/room?roomCode=${roomCode}&roomId=${data.room}`);
     } catch {
