@@ -43,8 +43,11 @@ export default function LoginForm() {
       localStorage.setItem("token", data.token);
       document.cookie = `token=${data.token}; path=/;`;
       localStorage.setItem("user_id", data.user_id);
+      document.cookie = `user_id=${data.user_id}; path=/;`;
       localStorage.setItem("username", data.username);
+      document.cookie = `username=${data.username}; path=/;`;
       localStorage.setItem("role", data.role);
+      document.cookie = `role=${data.role}; path=/;`;
       console.log("Usuário logado com sucesso:", data);
 
       router.replace("/join");
