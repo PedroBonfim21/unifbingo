@@ -51,6 +51,8 @@ export default function LobbyClient() {
         return;
       }
       const data = await response.json();
+      localStorage.setItem("gameSessionID", data.session);
+      document.cookie = `gameSessionID=${data.session}; path=/;`;
       // Redireciona para a página da sala do jogo usando o room uuid retornado
       router.push(`/room?roomCode=${roomCode}&roomId=${data.room}`);
     } catch {
