@@ -67,6 +67,7 @@ export default function RoomPage() {
                 ))}
               </ul>
             </div>
+            <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"> gerar numero</button>
           </div>
         </div>
       </div>
