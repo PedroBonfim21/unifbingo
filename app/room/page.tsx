@@ -4,13 +4,22 @@
 import { useState } from "react";
 import BingoBoard from "@/components/bingoBoard";
 
-const mockBoard: Array<number | "FREE"> = [
-  5, 18, 31, 49, 60,
-  12, 23, 39, 50, 66,
-  3, 20, "FREE", 52, 72,
-  8, 25, 33, 55, 63,
-  1, 16, 30, 48, 70
-];
+// Recupera o valor do cookie bingoCard - gerar componente BingoBoard para nao realizar a requisição aqui
+function getCookie(name: string) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+const bingoCardCookie = getCookie("bingoCard");
+
+let bingoBoard: Array<number | "FREE"> = [];
+
+if (bingoCardCookie) {
+  const boardFromApi = bingoCardCookie.split(","); // agora é string[]
+  bingoBoard = boardFromApi.map((item) =>
+    item === "X" ? "FREE" : Number(item)
+  );
+}
 
 const mockPlayers = [
   { id: 1, name: "Você" },
@@ -21,10 +30,35 @@ const mockPlayers = [
 
 export default function RoomPage() {
   const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
-  const currentNumber = 33;
+  const [currentNumber, setCurrentNumber] = useState<number | null>(null);
+
+  const handleDrawNumber = async () => {
+    let token = "";
+    if (typeof window !== "undefined") {
+      const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+      token = match ? match[2] : "";
+    }
+    //sessionId esta mockado por 52ffce3d-5d89-483a-9d07-3236c699f5c6 corrigir depois adicionando como sessionId no cookie quando entrar na sala
+    const roomId = getCookie("room_id");
+    if (!roomId) return;
+    const response = await fetch(
+      `http://localhost:8000/api/game-sessions/52ffce3d-5d89-483a-9d07-3236c699f5c6/draw-next/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      }
+    );
+    if (response.ok) {
+      const data = await response.json();
+      setCurrentNumber(data.number);
+    }
+  };
 
   const handleMark = () => {
-    if (!marked.includes(currentNumber)) {
+    if (currentNumber !== null && !marked.includes(currentNumber)) {
       setMarked([...marked, currentNumber]);
     }
   };
@@ -36,7 +70,7 @@ export default function RoomPage() {
           {/* Cartela */}
           <div className="flex-1 flex flex-col items-center space-y-4">
             <h2 className="text-xl font-bold text-purple-800">Sua Cartela</h2>
-            <BingoBoard board={mockBoard} markedNumbers={marked} />
+            <BingoBoard board={bingoBoard} markedNumbers={marked} />
             <button
               onClick={handleMark}
               className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
@@ -67,7 +101,11 @@ export default function RoomPage() {
                 ))}
               </ul>
             </div>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"> gerar numero</button>
+            <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+            onClick={handleDrawNumber}
+            > 
+            gerar numero
+            </button>
           </div>
         </div>
       </div>
