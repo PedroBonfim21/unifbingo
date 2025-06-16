@@ -39,10 +39,10 @@ export default function RoomPage() {
       token = match ? match[2] : "";
     }
     //sessionId esta mockado por 52ffce3d-5d89-483a-9d07-3236c699f5c6 corrigir depois adicionando como sessionId no cookie quando entrar na sala
-    const roomId = getCookie("room_id");
-    if (!roomId) return;
+    const sessionId = getCookie("gameSessionID");
+    if (!sessionId) return;
     const response = await fetch(
-      `http://localhost:8000/api/game-sessions/52ffce3d-5d89-483a-9d07-3236c699f5c6/draw-next/`,
+      `http://localhost:8000/api/game-sessions/${sessionId}/draw-next/`,
       {
         method: "POST",
         headers: {
