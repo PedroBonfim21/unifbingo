@@ -1,7 +1,6 @@
-/* vai receber o componente Bingo_board que vai estar com a cartela do bingo */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BingoBoard from "@/components/bingoBoard";
 
 // Recupera o valor do cookie bingoCard - gerar componente BingoBoard para nao realizar a requisição aqui
@@ -29,6 +28,22 @@ const mockPlayers = [
 ];
 
 export default function RoomPage() {
+  const [isHost, setIsHost] = useState(false);
+  
+    const handleSetHost = async () => {
+      try {
+        const match = document.cookie.match(new RegExp('(^| )role=([^;]+)'));
+        const role = match ? match[2] : "";
+        setIsHost(role === "host" || role === "admin");
+      } catch (error) {
+        console.error("Erro ao definir o host:", error);
+      }
+    };
+    useEffect(() => {
+      handleSetHost();
+    }, []);
+
+
   const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
   const [currentNumber, setCurrentNumber] = useState<number | null>(null);
 
@@ -101,11 +116,13 @@ export default function RoomPage() {
                 ))}
               </ul>
             </div>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
-            onClick={handleDrawNumber}
-            > 
-            gerar numero
-            </button>
+            {isHost && (
+              <button className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+              onClick={handleDrawNumber}
+              > 
+              gerar numero
+              </button>
+            )}
           </div>
         </div>
       </div>
