@@ -2,8 +2,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import LobbyClient from "./LobbyClient";
 
+
 export default function LobbyPage() {
-  const isHost = true; // ajuste conforme sua lógica
 
   return (
     <div className="min-h-screen bg-purple-900 flex items-center justify-center p-4">
@@ -17,7 +17,8 @@ export default function LobbyPage() {
           Voltar
         </Link>
 
-        <LobbyClient isHost={isHost} />
+        <LobbyClient />
+
       </div>
     </div>
   );
