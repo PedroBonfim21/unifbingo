@@ -65,7 +65,12 @@ export default function JoinForm() {
         setLoading(false);
         return;
       };
-      router.push(`/lobby?roomCode=${roomCode}&roomId=${data[0].id}`);
+      localStorage.setItem("room_code", roomCode);
+      document.cookie = `room_code=${roomCode}; path=/;`;
+      localStorage.setItem("room_id", data[0].id);
+      document.cookie = `room_id=${data[0].id}; path=/;`;
+      const roomId = data[0].id;
+      router.push(`/lobby?roomCode=${roomCode}&roomId=${roomId}`);
     } catch {
       setError("Erro ao conectar com o servidor.");
     } finally {
