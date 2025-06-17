@@ -4,6 +4,8 @@ import type { NextRequest } from "next/server";
 // Rotas que exigem autenticação
 const protectedRoutes = [
   "/join",
+  "/lobby",
+  "/room",
   // adicione outras rotas privadas aqui
 ];
 
