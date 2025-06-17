@@ -1,6 +1,8 @@
 /* codigo da sala + criar sala  */
 import JoinForm from "./form";
 import ProtectedRoute from "../../components/protectedRoute";
+import ButtonCreateRoom from "./components/buttonCreateRoom";
+
 
 export default function JoinPage() {
   return (
@@ -11,6 +13,7 @@ export default function JoinPage() {
               Entrar em uma Sala - Fazendo
             </h1>
             <JoinForm />
+            <ButtonCreateRoom />
           </div>
         </div>
     </ProtectedRoute>
