@@ -55,7 +55,7 @@ export default function RoomPage() {
         new RegExp("(^| )gameSessionID=([^;]+)")
       );
       const sessionId = match ? match[2] : "";
-      setSessionId("eee74d07-1fd9-4e96-85ca-5c0c657e13e9");
+      setSessionId("08e57037-8a5a-42db-bfc8-5575ad27d2a1");
       console.log("Session ID:", sessionId);
     }
   };
@@ -108,8 +108,61 @@ export default function RoomPage() {
     }
   };
 
+  const nextNumber = async () => {
+    if (!sessionId) return;
+
+    // Atualiza a lista de números sorteados do servidor
+    const response = await fetch(
+      `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Erro ao buscar números sorteados:", response.statusText);
+      return;
+    }
+
+    const serverNumbers = await response.json();
+    interface ServerNumber {
+      number: number;
+    }
+    const serverSortedNumbers: number[] = (serverNumbers as ServerNumber[]).map(
+      (item: ServerNumber) => item.number
+    );
+
+    if (
+      sortedNumbers.length === 0 ||
+      JSON.stringify(sortedNumbers) !== JSON.stringify(serverSortedNumbers)
+    ) {
+      const remainingNumbers = serverSortedNumbers.filter(
+        (num) => !marked.includes(num)
+      );
+
+      if (remainingNumbers.length > 0) {
+        const nextNum = remainingNumbers[0];
+        setCurrentNumber(nextNum);
+        setMarked([...marked, nextNum]);
+        localStorage.setItem(
+          "markedNumbers",
+          JSON.stringify([...marked, nextNum])
+        );
+      } else {
+        console.log(
+          "Todos os números foram marcados. Consultando novamente..."
+        );
+      }
+    } else {
+      console.log("Não há novos números disponíveis.");
+    }
+  };
+
   const handleRefreshListNumbers = async () => {
-    mountBingoBoard();
     const token = getCookie("token");
     if (token) {
       const response = await fetch(
@@ -122,13 +175,13 @@ export default function RoomPage() {
           },
         }
       );
+
+      if (!response.ok) {
+        console.error("Erro ao buscar números sorteados:", response.statusText);
+        return;
+      }
       const numbers = await response.json();
       setCurrentNumber(numbers[numbers.length - 1].number);
-
-      // const markedNumbers = numbers.map(
-      //   (num: { number: number }) => num.number
-      // );
-      // localStorage.setItem("markedNumbers", JSON.stringify(markedNumbers));
     }
   };
 
@@ -206,10 +259,10 @@ export default function RoomPage() {
             )}
             {!isHost && (
               <button
-                onClick={handleRefreshListNumbers}
+                onClick={nextNumber}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full"
               >
-                atualizar lista de numeros
+                Próximo número
               </button>
             )}
           </div>
