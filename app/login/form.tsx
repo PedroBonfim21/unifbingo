@@ -10,14 +10,20 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const role =
+    typeof window !== "undefined" ? localStorage.getItem("role") : null;
   const router = useRouter();
 
   // Se já estiver logado, redireciona para a tela de entrar em sala
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("token")) {
-      router.replace("/join");
+      if (role === "host" || role === "admin") {
+        router.replace("/create_room");
+      } else if (role === "player") {
+        router.replace("/join");
+      }
     }
-  }, [router]);
+  }, [role, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +56,13 @@ export default function LoginForm() {
       document.cookie = `role=${data.role}; path=/;`;
       console.log("Usuário logado com sucesso:", data);
 
-      router.replace("/join");
+      if (typeof window !== "undefined" && localStorage.getItem("token")) {
+        if (role === "host" || role === "admin") {
+          router.replace("/create_room");
+        } else if (role === "player") {
+          router.replace("/join");
+        }
+      }
     } catch (err) {
       console.error("Erro ao conectar com o servidor:", err);
       setError("Erro ao conectar com o servidor.");
@@ -77,9 +89,7 @@ export default function LoginForm() {
         className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-600"
         required
       />
-      {error && (
-        <div className="text-red-600 text-sm">{error}</div>
-      )}
+      {error && <div className="text-red-600 text-sm">{error}</div>}
       <button
         type="submit"
         className="w-full bg-purple-700 text-white font-semibold py-2 rounded-lg hover:bg-purple-800 transition"
