@@ -27,6 +27,14 @@ export default function Navbar() {
     localStorage.removeItem("user_id");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
+    localStorage.removeItem("gameSessionID");
+    localStorage.removeItem("bingoCard");
+    localStorage.removeItem("bingoCardId");
+    localStorage.removeItem("players");
+    localStorage.removeItem("sortedNumbers");
+    localStorage.removeItem("markedNumbers");
+    localStorage.removeItem("roomCode");
+    localStorage.removeItem("roomId");
     router.replace("/login");
      // Remove todos os cookies
     if (typeof document !== "undefined") {

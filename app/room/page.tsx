@@ -3,21 +3,40 @@
 import { useState, useEffect } from "react";
 import BingoBoard from "@/components/bingoBoard";
 
-// Recupera o valor do cookie bingoCard - gerar componente BingoBoard para nao realizar a requisição aqui
-function getCookie(name: string) {
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? decodeURIComponent(match[2]) : null;
-}
-
-const mockPlayers = [
-  { id: 1, name: "Você" },
-  { id: 2, name: "Maria" },
-  { id: 3, name: "João" },
-  { id: 4, name: "Lucas" },
-];
-
 export default function RoomPage() {
+  const bingoCardCookie = getCookie("bingoCard");
   const [isHost, setIsHost] = useState(false);
+  const [token, setToken] = useState<string>("");
+  const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
+  const [currentNumber, setCurrentNumber] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [bingoBoard, setBingoBoard] = useState<Array<number | "FREE">>([]);
+  const [sortedNumbers, setSortedNumbers] = useState<Array<number>>([]);
+
+  const mountBingoBoard = () => {
+    if (bingoCardCookie) {
+      const boardFromApi = bingoCardCookie.split(",");
+      setBingoBoard(
+        boardFromApi.map((item) => (item === "X" ? "FREE" : Number(item)))
+      );
+    }
+  };
+
+  function getCookie(name: string) {
+    const match = document.cookie.match(
+      new RegExp("(^| )" + name + "=([^;]+)")
+    );
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  const getToken = () => {
+    if (token) return;
+    if (typeof window !== "undefined") {
+      const match = document.cookie.match(new RegExp("(^| )token=([^;]+)"));
+      const token = match ? decodeURIComponent(match[2]) : "";
+      setToken(token);
+    }
+  };
 
   const handleSetHost = async () => {
     try {
@@ -28,36 +47,16 @@ export default function RoomPage() {
       console.error("Erro ao definir o host:", error);
     }
   };
-  const bingoCardCookie = getCookie("bingoCard");
 
-  useEffect(() => {
-    handleSetHost();
-    getToken();
-    mountBingoBoard();
-    getMarkedNumbers();
-    handleRefreshListNumbers();
-  }, []);
-
-  const [token, setToken] = useState<string>("");
-  const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
-  const [currentNumber, setCurrentNumber] = useState<number | null>(null);
-  const sessionId = "7a32aba1-73b6-4015-ad07-9e42777d9717";
-  const [bingoBoard, setBingoBoard] = useState<Array<number | "FREE">>([]);
-
-  const mountBingoBoard = () => {
-    if (bingoCardCookie) {
-      const boardFromApi = bingoCardCookie.split(","); // agora é string[]
-      setBingoBoard(
-        boardFromApi.map((item) => (item === "X" ? "FREE" : Number(item)))
-      );
-    }
-  };
-  const getToken = () => {
-    if (token) return;
+  const getSessionId = () => {
+    if (sessionId) return;
     if (typeof window !== "undefined") {
-      const match = document.cookie.match(new RegExp("(^| )token=([^;]+)"));
-      const token = match ? decodeURIComponent(match[2]) : "";
-      setToken(token);
+      const match = document.cookie.match(
+        new RegExp("(^| )gameSessionID=([^;]+)")
+      );
+      const sessionId = match ? match[2] : "";
+      setSessionId("eee74d07-1fd9-4e96-85ca-5c0c657e13e9");
+      console.log("Session ID:", sessionId);
     }
   };
 
@@ -65,6 +64,11 @@ export default function RoomPage() {
     const storedMarkedNumbers = localStorage.getItem("markedNumbers");
     if (storedMarkedNumbers) {
       setMarked(JSON.parse(storedMarkedNumbers));
+      setCurrentNumber(
+        JSON.parse(storedMarkedNumbers)[
+          JSON.parse(storedMarkedNumbers).length - 1
+        ]
+      );
     }
   };
 
@@ -83,15 +87,28 @@ export default function RoomPage() {
     if (response.ok) {
       const data = await response.json();
       setCurrentNumber(data.number);
+
+      const updatedSortedNumbers = [...sortedNumbers, data.number].sort(
+        (a, b) => a - b
+      );
+      setSortedNumbers(updatedSortedNumbers);
+
+      localStorage.setItem(
+        "sortedNumbers",
+        JSON.stringify(updatedSortedNumbers)
+      );
     }
   };
 
   const handleMark = () => {
     if (currentNumber !== null && !marked.includes(currentNumber)) {
-      setMarked([...marked, currentNumber]);
+      const updatedMarked = [...marked, currentNumber];
+      setMarked(updatedMarked);
+      localStorage.setItem("markedNumbers", JSON.stringify(updatedMarked));
     }
   };
-  const handleRefreshListNumbers = async (mark: boolean = false) => {
+
+  const handleRefreshListNumbers = async () => {
     mountBingoBoard();
     const token = getCookie("token");
     if (token) {
@@ -107,15 +124,35 @@ export default function RoomPage() {
       );
       const numbers = await response.json();
       setCurrentNumber(numbers[numbers.length - 1].number);
-      const markedNumbers = numbers.map(
-        (num: { number: number }) => num.number
-      );
-      if (mark) {
-        setMarked(markedNumbers);
-        localStorage.setItem("markedNumbers", JSON.stringify(markedNumbers));
-      }
+
+      // const markedNumbers = numbers.map(
+      //   (num: { number: number }) => num.number
+      // );
+      // localStorage.setItem("markedNumbers", JSON.stringify(markedNumbers));
     }
   };
+
+  const getSortedNumbers = () => {
+    const storedSortedNumbers = localStorage.getItem("sortedNumbers");
+    if (storedSortedNumbers) {
+      setSortedNumbers(JSON.parse(storedSortedNumbers));
+      setCurrentNumber(
+        JSON.parse(storedSortedNumbers)[
+          JSON.parse(storedSortedNumbers).length - 1
+        ]
+      );
+    }
+  };
+
+  useEffect(() => {
+    handleSetHost();
+    getToken();
+    getSessionId();
+    mountBingoBoard();
+    getMarkedNumbers();
+    handleRefreshListNumbers();
+    getSortedNumbers();
+  }, []);
 
   return (
     <div className="min-h-screen bg-purple-900 p-4 flex flex-col items-center justify-center">
@@ -123,20 +160,10 @@ export default function RoomPage() {
         <div className="flex flex-col md:flex-row md:items-start gap-6">
           {/* Cartela */}
           <div className="flex-1 flex flex-col items-center space-y-4">
-            <h2 className="text-xl font-bold text-purple-800">Sua Cartela</h2>
+            {!isHost && (
+              <h2 className="text-xl font-bold text-purple-800">Sua Cartela</h2>
+            )}
             <BingoBoard board={bingoBoard} markedNumbers={marked} />
-            <button
-              onClick={handleMark}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
-            >
-              Marcar Número
-            </button>
-            <button
-              onClick={() => handleRefreshListNumbers(true)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
-            >
-              atualizar lista de numeros
-            </button>
           </div>
 
           {/* Painel lateral */}
@@ -149,28 +176,40 @@ export default function RoomPage() {
                 {currentNumber}
               </div>
             </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-purple-800 mb-2">
-                Jogadores
-              </h3>
-              <ul className="space-y-1">
-                {mockPlayers.map((player) => (
-                  <li
-                    key={player.id}
-                    className="bg-gray-100 px-3 py-1 rounded text-sm text-gray-700"
-                  >
-                    {player.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
             {isHost && (
               <button
-                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full"
                 onClick={handleDrawNumber}
               >
                 gerar numero
+              </button>
+            )}
+            {isHost && (
+              <div className="grid grid-cols-5 gap-2">
+                {sortedNumbers.map((number) => (
+                  <div
+                    key={number}
+                    className="bg-purple-100 text-purple-800 text-center font-bold rounded-lg p-2"
+                  >
+                    {number}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isHost && (
+              <button
+                onClick={handleMark}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full"
+              >
+                Marcar Número
+              </button>
+            )}
+            {!isHost && (
+              <button
+                onClick={handleRefreshListNumbers}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full"
+              >
+                atualizar lista de numeros
               </button>
             )}
           </div>

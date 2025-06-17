@@ -47,6 +47,10 @@ export default function UsersList({ roomCode }: UsersListProps) {
         }
         const data = await response.json();
         setUsers(data);
+        console.log("Usuários da sala:", JSON.stringify(users));
+        
+        localStorage.setItem("players", JSON.stringify(users));
+
       } catch {
         setError("Erro ao conectar com o servidor.");
       } finally {
