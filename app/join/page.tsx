@@ -3,7 +3,6 @@ import JoinForm from "./form";
 import ProtectedRoute from "../../components/protectedRoute";
 import ButtonCreateRoom from "./components/buttonCreateRoom";
 
-
 export default function JoinPage() {
   return (
     <ProtectedRoute>
