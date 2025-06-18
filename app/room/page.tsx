@@ -48,14 +48,25 @@ export default function RoomPage() {
     }
   };
 
-  const getSessionId = () => {
-    if (sessionId) return;
+  const getSessionId = async () => {
+    if (!isHost) {
+      const response = await fetch(`http://localhost:8000/api/game-sessions/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${getCookie("token")}`,
+        },
+      });
+      const data = await response.json();
+      const sessionID = data[data.length - 1]?.id;
+      setSessionId(sessionID);
+      console.log("Session ID:", sessionID);
+
+      localStorage.setItem("sessionId", sessionID);
+    }
     if (typeof window !== "undefined") {
-      const match = document.cookie.match(
-        new RegExp("(^| )gameSessionID=([^;]+)")
-      );
-      const sessionId = match ? match[2] : "";
-      setSessionId("08e57037-8a5a-42db-bfc8-5575ad27d2a1");
+      const sessionId = localStorage.getItem("sessionId");
+      setSessionId(sessionId);
       console.log("Session ID:", sessionId);
     }
   };
@@ -109,9 +120,13 @@ export default function RoomPage() {
   };
 
   const nextNumber = async () => {
-    if (!sessionId) return;
+    console.log("Session ID:", sessionId);
 
-    // Atualiza a lista de números sorteados do servidor
+    if (sessionId === undefined) {
+      nextNumber();
+      return;
+    }
+
     const response = await fetch(
       `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
       {
@@ -164,7 +179,7 @@ export default function RoomPage() {
 
   const handleRefreshListNumbers = async () => {
     const token = getCookie("token");
-    if (token) {
+    if (token && sessionId) {
       const response = await fetch(
         `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
         {
