@@ -1,11 +1,22 @@
+// app/room/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import BingoBoard from "@/components/bingoBoard";
 import ProtectedRoute from "@/components/protectedRoute";
 
+// Função auxiliar para cookies, segura para SSR (verifica 'window' antes de acessar 'document')
+function getCookie(name: string): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const match = document.cookie.match(
+    new RegExp("(^| )" + name + "=([^;]+)")
+  );
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
 export default function RoomPage() {
-  const bingoCardCookie = getCookie("bingoCard");
   const [isHost, setIsHost] = useState(false);
   const [token, setToken] = useState<string>("");
   const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
@@ -14,175 +25,144 @@ export default function RoomPage() {
   const [bingoBoard, setBingoBoard] = useState<Array<number | "FREE">>([]);
   const [sortedNumbers, setSortedNumbers] = useState<Array<number>>([]);
 
-  
-
-  const mountBingoBoard = () => {
+  const mountBingoBoard = useCallback(() => {
+    const bingoCardCookie = getCookie("bingoCard");
     if (bingoCardCookie) {
       const boardFromApi = bingoCardCookie.split(",");
       setBingoBoard(
         boardFromApi.map((item) => (item === "X" ? "FREE" : Number(item)))
       );
     }
-  };
+  }, []);
 
-  function getCookie(name: string) {
-    const match = document.cookie.match(
-      new RegExp("(^| )" + name + "=([^;]+)")
-    );
-    return match ? decodeURIComponent(match[2]) : null;
-  }
-
-  const getToken = () => {
+  const getToken = useCallback(() => {
     if (token) return;
-    if (typeof window !== "undefined") {
-      const match = document.cookie.match(new RegExp("(^| )token=([^;]+)"));
-      const token = match ? decodeURIComponent(match[2]) : "";
-      setToken(token);
+    const currentToken = getCookie("token");
+    if (currentToken) {
+      setToken(currentToken);
     }
-  };
+  }, [token]);
 
-  const handleSetHost = async () => {
+  const handleSetHost = useCallback(() => {
     try {
-      const match = document.cookie.match(new RegExp("(^| )role=([^;]+)"));
-      const role = match ? match[2] : "";
+      const role = getCookie("role");
       setIsHost(role === "host" || role === "admin");
     } catch (error) {
       console.error("Erro ao definir o host:", error);
     }
-  };
+  }, []);
 
-  const getSessionId = async () => {
-    if (!isHost) {
+  const getSessionId = useCallback(async () => {
+    if (sessionId) return;
+    if (typeof window !== "undefined") {
+      const storedSessionId = localStorage.getItem("sessionId");
+      if (storedSessionId) {
+        setSessionId(storedSessionId);
+        console.log("Session ID from localStorage:", storedSessionId);
+        return;
+      }
+    }
+
+    const currentToken = getCookie("token");
+    if (!currentToken) {
+      console.error("No token found to fetch game sessions.");
+      return;
+    }
+
+    try {
       const response = await fetch(`http://localhost:8000/api/game-sessions/`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Token ${getCookie("token")}`,
+          Authorization: `Token ${currentToken}`,
         },
       });
+      if (!response.ok) {
+        console.error("Failed to fetch game sessions:", response.statusText);
+        return;
+      }
       const data = await response.json();
       const sessionID = data[data.length - 1]?.id;
-      setSessionId(sessionID);
-      console.log("Session ID:", sessionID);
-
-      localStorage.setItem("sessionId", sessionID);
-    }
-    if (typeof window !== "undefined") {
-      const sessionId = localStorage.getItem("sessionId");
-      setSessionId(sessionId);
-      console.log("Session ID:", sessionId);
-    }
-  };
-
-  const getMarkedNumbers = async () => {
-    const storedMarkedNumbers = localStorage.getItem("markedNumbers");
-    if (storedMarkedNumbers) {
-      setMarked(JSON.parse(storedMarkedNumbers));
-      setCurrentNumber(
-        JSON.parse(storedMarkedNumbers)[
-          JSON.parse(storedMarkedNumbers).length - 1
-        ]
-      );
-    }
-  };
-
-  const handleDrawNumber = async () => {
-    if (!sessionId) return;
-    const response = await fetch(
-      `http://localhost:8000/api/game-sessions/${sessionId}/draw-next/`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
+      if (sessionID) {
+        setSessionId(sessionID);
+        console.log("Session ID from API:", sessionID);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("sessionId", sessionID);
+        }
       }
-    );
-    if (response.ok) {
-      const data = await response.json();
-      setCurrentNumber(data.number);
-
-      const updatedSortedNumbers = [...sortedNumbers, data.number].sort(
-        (a, b) => a - b
-      );
-      setSortedNumbers(updatedSortedNumbers);
-
-      localStorage.setItem(
-        "sortedNumbers",
-        JSON.stringify(updatedSortedNumbers)
-      );
+    } catch (error) {
+      console.error("Erro ao obter o ID da sessão:", error);
     }
-  };
+  }, [sessionId]);
 
-  const handleMark = () => {
+
+  const getMarkedNumbers = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const storedMarkedNumbers = localStorage.getItem("markedNumbers");
+      if (storedMarkedNumbers) {
+        const parsedMarked = JSON.parse(storedMarkedNumbers);
+        setMarked(parsedMarked);
+        if (parsedMarked.length > 0) {
+          setCurrentNumber(parsedMarked[parsedMarked.length - 1]);
+        }
+      }
+    }
+  }, []);
+
+  const handleDrawNumber = useCallback(async () => {
+    if (!sessionId || !token) return;
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/game-sessions/${sessionId}/draw-next/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Token ${token}`,
+          },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentNumber(data.number);
+
+        const updatedSortedNumbers = [...sortedNumbers, data.number].sort(
+          (a, b) => a - b
+        );
+        setSortedNumbers(updatedSortedNumbers);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "sortedNumbers",
+            JSON.stringify(updatedSortedNumbers)
+          );
+        }
+      } else {
+        console.error("Erro ao sortear número:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Erro ao conectar para sortear número:", error);
+    }
+  }, [sessionId, token, sortedNumbers]);
+
+  const handleMark = useCallback(() => {
     if (currentNumber !== null && !marked.includes(currentNumber)) {
       const updatedMarked = [...marked, currentNumber];
       setMarked(updatedMarked);
-      localStorage.setItem("markedNumbers", JSON.stringify(updatedMarked));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("markedNumbers", JSON.stringify(updatedMarked));
+      }
     }
-  };
+  }, [currentNumber, marked]);
 
-  const nextNumber = async () => {
+  const nextNumber = useCallback(async () => {
     console.log("Session ID:", sessionId);
 
-    if (sessionId === undefined) {
-      nextNumber();
+    if (!sessionId || !token) {
+      console.log("Session ID or token not available yet for nextNumber.");
       return;
     }
 
-    const response = await fetch(
-      `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error("Erro ao buscar números sorteados:", response.statusText);
-      return;
-    }
-
-    const serverNumbers = await response.json();
-    interface ServerNumber {
-      number: number;
-    }
-    const serverSortedNumbers: number[] = (serverNumbers as ServerNumber[]).map(
-      (item: ServerNumber) => item.number
-    );
-
-    if (
-      sortedNumbers.length === 0 ||
-      JSON.stringify(sortedNumbers) !== JSON.stringify(serverSortedNumbers)
-    ) {
-      const remainingNumbers = serverSortedNumbers.filter(
-        (num) => !marked.includes(num)
-      );
-
-      if (remainingNumbers.length > 0) {
-        const nextNum = remainingNumbers[0];
-        setCurrentNumber(nextNum);
-        setMarked([...marked, nextNum]);
-        localStorage.setItem(
-          "markedNumbers",
-          JSON.stringify([...marked, nextNum])
-        );
-      } else {
-        console.log(
-          "Todos os números foram marcados. Consultando novamente..."
-        );
-      }
-    } else {
-      console.log("Não há novos números disponíveis.");
-    }
-  };
-
-  const handleRefreshListNumbers = async () => {
-    const token = getCookie("token");
-    if (token && sessionId) {
+    try {
       const response = await fetch(
         `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
         {
@@ -198,22 +178,88 @@ export default function RoomPage() {
         console.error("Erro ao buscar números sorteados:", response.statusText);
         return;
       }
-      const numbers = await response.json();
-      setCurrentNumber(numbers[numbers.length - 1].number);
-    }
-  };
 
-  const getSortedNumbers = () => {
-    const storedSortedNumbers = localStorage.getItem("sortedNumbers");
-    if (storedSortedNumbers) {
-      setSortedNumbers(JSON.parse(storedSortedNumbers));
-      setCurrentNumber(
-        JSON.parse(storedSortedNumbers)[
-          JSON.parse(storedSortedNumbers).length - 1
-        ]
+      const serverNumbers = await response.json();
+      interface ServerNumber {
+        number: number;
+      }
+      const serverSortedNumbers: number[] = (serverNumbers as ServerNumber[]).map(
+        (item: ServerNumber) => item.number
       );
+
+      if (
+        sortedNumbers.length !== serverSortedNumbers.length ||
+        JSON.stringify(sortedNumbers) !== JSON.stringify(serverSortedNumbers)
+      ) {
+        setSortedNumbers(serverSortedNumbers.sort((a, b) => a - b));
+
+        const newNumbers = serverSortedNumbers.filter(
+          (num) => !marked.includes(num)
+        );
+
+        if (newNumbers.length > 0) {
+          const nextNum = newNumbers[newNumbers.length - 1];
+          setCurrentNumber(nextNum);
+          const updatedMarked = [...marked, nextNum];
+          setMarked(updatedMarked);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("markedNumbers", JSON.stringify(updatedMarked));
+            localStorage.setItem("sortedNumbers", JSON.stringify(serverSortedNumbers.sort((a, b) => a - b)));
+          }
+        } else {
+          console.log("Todos os números foram marcados ou não há novos números.");
+        }
+      } else {
+        console.log("Não há novos números disponíveis no servidor.");
+      }
+    } catch (error) {
+      console.error("Erro ao conectar para buscar próximos números:", error);
     }
-  };
+  }, [sessionId, token, marked, sortedNumbers]);
+
+
+  /* const handleRefreshListNumbers = useCallback(async () => {
+    const currentToken = getCookie("token");
+    if (currentToken && sessionId) {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Token ${currentToken}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          console.error("Erro ao buscar números sorteados:", response.statusText);
+          return;
+        }
+        const numbers = await response.json();
+        if (numbers.length > 0) {
+          setCurrentNumber(numbers[numbers.length - 1].number);
+          setSortedNumbers(numbers.map((item: {number: number}) => item.number).sort((a, b) => a - b));
+        }
+      } catch (error) {
+        console.error("Erro ao conectar para refrescar a lista de números:", error);
+      }
+    }
+  }, [sessionId]); */
+
+  const getSortedNumbers = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const storedSortedNumbers = localStorage.getItem("sortedNumbers");
+      if (storedSortedNumbers) {
+        const parsedSorted = JSON.parse(storedSortedNumbers);
+        setSortedNumbers(parsedSorted);
+        if (parsedSorted.length > 0) {
+          setCurrentNumber(parsedSorted[parsedSorted.length - 1]);
+        }
+      }
+    }
+  }, []);
 
   useEffect(() => {
     handleSetHost();
@@ -221,12 +267,17 @@ export default function RoomPage() {
     getSessionId();
     mountBingoBoard();
     getMarkedNumbers();
-    handleRefreshListNumbers();
     getSortedNumbers();
-    
-  }, []);
+  }, [handleSetHost, getToken, getSessionId, mountBingoBoard, getMarkedNumbers, getSortedNumbers]);
 
-  
+
+  useEffect(() => {
+    if (sortedNumbers.length > 0 && currentNumber === null) {
+      setCurrentNumber(sortedNumbers[sortedNumbers.length - 1]);
+    }
+  }, [sortedNumbers, currentNumber]);
+
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-purple-900 p-4 flex flex-col items-center justify-center">
