@@ -1,28 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { LogOut } from 'lucide-react';
 
 const routes = [
   { href: "/", label: "Início" },
   { href: "/login", label: "Login" },
   { href: "/register", label: "Registrar" },
   { href: "/join", label: "Entrar em Sala" },
-  { href: "/create_room", label: "Criar sala" },
   { href: "/lobby", label: "Lobby" },
   { href: "/room", label: "Sala" },
 ];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLogged, setIsLogged] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("token")) {
+      setIsLogged(true);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user_id");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
+    localStorage.removeItem("gameSessionID");
+    localStorage.removeItem("bingoCard");
+    localStorage.removeItem("bingoCardId");
+    localStorage.removeItem("players");
+    localStorage.removeItem("sortedNumbers");
+    localStorage.removeItem("markedNumbers");
+    localStorage.removeItem("roomCode");
+    localStorage.removeItem("roomId");
+    router.push("/login");
+    window.location.reload();
     if (typeof document !== "undefined") {
       document.cookie.split(";").forEach((c) => {
         const eqPos = c.indexOf("=");
@@ -30,29 +47,20 @@ export default function Navbar() {
         document.cookie = name.trim() + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
       });
     }
-    router.replace("/login");
   };
-
-  const isLogged = typeof window !== "undefined" && localStorage.getItem("token");
 
   return (
     <nav className="bg-purple-800 text-white py-4 relative">
       <div className="container mx-auto flex items-center justify-between px-6">
-        <Link href="/" className="text-2xl font-bold">
-          UniFBingo
-        </Link>
-
-        {/* Menu Hamburguer (Mobile) */}
-        <div className="md:hidden flex items-center gap-2">
-          {/* Logout fora do menu hamburguer */}
-          {isLogged && (
-            <button onClick={handleLogout} className="hover:text-purple-200 text-sm px-2 py-1 rounded">
-              Logout
-            </button>
-          )}
+        {/* Esquerda: Logo e menu hamburguer */}
+        <div className="flex items-center gap-2">
+          <Link href="/" className="text-2xl font-bold hidden md:block">
+            UniFBingo
+          </Link>
+          {/* Menu Hamburguer (Mobile) */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="focus:outline-none"
+            className="md:hidden focus:outline-none ml-2"
             aria-label="Abrir menu"
           >
             <svg
@@ -72,16 +80,25 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Links (Desktop) */}
-        <div className="hidden md:flex space-x-6 items-center">
+        {/* Centro: Links (Desktop) */}
+        <div className="hidden md:flex flex-1 justify-center space-x-6 items-center">
           {routes.map((route) => (
             <Link key={route.href} href={route.href} className="hover:text-purple-200">
               {route.label}
             </Link>
           ))}
+        </div>
+
+        {/* Direita: Logout */}
+        <div className="flex items-center">
           {isLogged && (
-            <button onClick={handleLogout} className="hover:text-purple-200 text-sm px-2 py-1 rounded">
-              Logout
+            <button
+              onClick={handleLogout}
+              className="hover:text-red-500 text-sm px-2 py-1 rounded flex items-center gap-1"
+              title="Logout"
+            >
+              <LogOut />
+              <span className="hidden md:inline">Logout</span>
             </button>
           )}
         </div>
@@ -90,7 +107,7 @@ export default function Navbar() {
       {/* Links (Mobile - dropdown animado sobreposto) */}
       <div
         className={`
-          md:hidden bg-purple-700 transition-all duration-1000 ease-in-out overflow-hidden
+          md:hidden bg-purple-700 transition-all duration-500 ease-in-out overflow-hidden
           absolute left-0 top-full w-full z-50
           ${isOpen ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"}
         `}
