@@ -5,12 +5,18 @@ import UsersList from "./users_list";
 import { useState, useEffect } from "react";
 
 export default function LobbyClient() {
+  const [isClient, setIsClient] = useState(false); // Novo estado para verificar se o componente está montado no cliente
 
+  useEffect(() => {
+    setIsClient(true); // Define como true assim que o componente é montado no cliente
+  }, []);
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const roomCode = searchParams.get("roomCode") || "";
-  const roomId = searchParams.get("roomId") || "";
+
+  // Acessa searchParams condicionalmente, apenas quando estiver no cliente
+  const roomCode = isClient ? searchParams.get("roomCode") || "" : "";
+  const roomId = isClient ? searchParams.get("roomId") || "" : "";
 
   const [isHost, setIsHost] = useState(false);
 
@@ -75,7 +81,7 @@ export default function LobbyClient() {
           },
           body: JSON.stringify({ room: roomId })
         });
-        
+
         if (!response.ok) {
           alert("Erro ao gerar a cartela.");
           return;
@@ -83,14 +89,14 @@ export default function LobbyClient() {
         const data = await response.json();
         localStorage.setItem("bingoCard", data.numbers);
         document.cookie = `bingoCard=${data.numbers}; path=/;`;
-        
+
         // Redireciona para a página da sala do jogo usando o room uuid retornado
         router.push(`/room?roomCode=${roomCode}&roomId=${data.room}`);
     } catch {
       alert("Erro ao conectar com o servidor.");
     }
     }
-      
+
 
   return (
     <>
@@ -131,7 +137,7 @@ export default function LobbyClient() {
                 return match ? decodeURIComponent(match[2]) : "Não encontrado";
               })()}
             </span>
-            
+
           </>
         )}
       </div>
