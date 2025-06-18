@@ -19,7 +19,8 @@ export default function RoomClient() {
   const [token, setToken] = useState<string>("");
   const [marked, setMarked] = useState<Array<number | "FREE">>(["FREE"]);
   const [currentNumber, setCurrentNumber] = useState<number | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // Unify to one state variable name
+  const [gameSessionId, setGameSessionId] = useState<string | null>(null);
   const [bingoBoard, setBingoBoard] = useState<Array<number | "FREE">>([]);
   const [sortedNumbers, setSortedNumbers] = useState<Array<number>>([]);
 
@@ -50,13 +51,20 @@ export default function RoomClient() {
     }
   }, []);
 
-  const getSessionId = useCallback(async () => {
-    if (sessionId) return;
+  // Renamed to fetchAndSetGameSessionId for clarity and combined logic
+  const fetchAndSetGameSessionId = useCallback(async () => {
+    // Prefer the state variable if already set
+    if (gameSessionId) {
+      console.log("Game Session ID already in state:", gameSessionId);
+      return;
+    }
+
     if (typeof window !== "undefined") {
-      const storedSessionId = localStorage.getItem("sessionId");
-      if (storedSessionId) {
-        setSessionId(storedSessionId);
-        console.log("Session ID from localStorage:", storedSessionId);
+      // Try to get from localStorage first
+      const storedGameSessionId = localStorage.getItem("gameSessionId");
+      if (storedGameSessionId) {
+        setGameSessionId(storedGameSessionId);
+        console.log("Game Session ID from localStorage:", storedGameSessionId);
         return;
       }
     }
@@ -80,19 +88,21 @@ export default function RoomClient() {
         return;
       }
       const data = await response.json();
-      const sessionID = data[data.length - 1]?.id;
-      if (sessionID) {
-        setSessionId(sessionID);
-        console.log("Session ID from API:", sessionID);
+      const latestSessionId = data[data.length - 1]?.id; // Ensure this matches your API response structure
+      if (latestSessionId) {
+        setGameSessionId(latestSessionId);
+        console.log("Game Session ID from API:", latestSessionId);
         if (typeof window !== "undefined") {
-          localStorage.setItem("sessionId", sessionID);
+          // Store consistently with the chosen key
+          localStorage.setItem("gameSessionId", latestSessionId);
         }
+      } else {
+        console.error("No session ID found in API response.");
       }
     } catch (error) {
       console.error("Erro ao obter o ID da sessão:", error);
     }
-  }, [sessionId]);
-
+  }, [gameSessionId]); // Dependency updated
 
   const getMarkedNumbers = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -108,15 +118,20 @@ export default function RoomClient() {
   }, []);
 
   const handleDrawNumber = useCallback(async () => {
-    if (!sessionId || !token) return;
+    // Use the state variable gameSessionId, which should be populated by fetchAndSetGameSessionId
+    if (!gameSessionId || !token) {
+      console.error("Game Session ID or Token is missing. Cannot draw number.");
+      return;
+    }
+
     try {
       const response = await fetch(
-        `http://localhost:8000/api/game-sessions/${sessionId}/draw-next/`,
+        `http://localhost:8000/api/game-sessions/${gameSessionId}/draw-next/`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Token ${token}`,
+            Authorization: `Token ${token}`, // Use the token state variable
           },
         }
       );
@@ -140,9 +155,15 @@ export default function RoomClient() {
     } catch (error) {
       console.error("Erro ao conectar para sortear número:", error);
     }
-  }, [sessionId, token, sortedNumbers]);
+  }, [gameSessionId, token, sortedNumbers]); // Dependency updated
 
   const handleMark = useCallback(() => {
+    // This call is likely redundant here if fetchAndSetGameSessionId is called on mount
+    // It's also async, so it doesn't guarantee the cookie/localStorage is set before needed
+    // Consider if handleMark genuinely needs to re-fetch the session ID or just use the current state
+    // For now, I'll remove it as gameSessionId should be in state by this point.
+    // getGameSessionId(); // Removed this line
+
     if (currentNumber !== null && !marked.includes(currentNumber)) {
       const updatedMarked = [...marked, currentNumber];
       setMarked(updatedMarked);
@@ -152,22 +173,25 @@ export default function RoomClient() {
     }
   }, [currentNumber, marked]);
 
-  const nextNumber = useCallback(async () => {
-    console.log("Session ID:", sessionId);
+  // Removed getGameSessionId as its logic is now combined into fetchAndSetGameSessionId
+  // const getGameSessionId = useCallback(async() => { /* ... */ }, []);
 
-    if (!sessionId || !token) {
-      console.log("Session ID or token not available yet for nextNumber.");
+  const nextNumber = useCallback(async () => {
+    // Ensure the session ID and token are available
+    // Instead of re-fetching here, rely on the state being populated by useEffect
+    if (!gameSessionId || !token) {
+      console.error("Game Session ID or Token is null/undefined. Cannot fetch drawn numbers.");
       return;
     }
 
     try {
       const response = await fetch(
-        `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
+        `http://localhost:8000/api/drawn-numbers/?session=${gameSessionId}`, // Use the gameSessionId state
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Token ${token}`,
+            Authorization: `Token ${token}`, // Use the token state
           },
         }
       );
@@ -187,7 +211,7 @@ export default function RoomClient() {
 
       if (
         sortedNumbers.length !== serverSortedNumbers.length ||
-        JSON.stringify(sortedNumbers) !== JSON.stringify(serverSortedNumbers)
+        JSON.stringify(sortedNumbers) !== JSON.stringify(serverSortedNumbers.sort((a, b) => a - b))
       ) {
         setSortedNumbers(serverSortedNumbers.sort((a, b) => a - b));
 
@@ -200,6 +224,7 @@ export default function RoomClient() {
           setCurrentNumber(nextNum);
           const updatedMarked = [...marked, nextNum];
           setMarked(updatedMarked);
+
           if (typeof window !== "undefined") {
             localStorage.setItem("markedNumbers", JSON.stringify(updatedMarked));
             localStorage.setItem("sortedNumbers", JSON.stringify(serverSortedNumbers.sort((a, b) => a - b)));
@@ -213,38 +238,7 @@ export default function RoomClient() {
     } catch (error) {
       console.error("Erro ao conectar para buscar próximos números:", error);
     }
-  }, [sessionId, token, marked, sortedNumbers]);
-
-
-  /* const handleRefreshListNumbers = useCallback(async () => {
-    const currentToken = getCookie("token");
-    if (currentToken && sessionId) {
-      try {
-        const response = await fetch(
-          `http://localhost:8000/api/drawn-numbers/?session=${sessionId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Token ${currentToken}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          console.error("Erro ao buscar números sorteados:", response.statusText);
-          return;
-        }
-        const numbers = await response.json();
-        if (numbers.length > 0) {
-          setCurrentNumber(numbers[numbers.length - 1].number);
-          setSortedNumbers(numbers.map((item: {number: number}) => item.number).sort((a, b) => a - b));
-        }
-      } catch (error) {
-        console.error("Erro ao conectar para refrescar a lista de números:", error);
-      }
-    }
-  }, [sessionId]); */
+  }, [gameSessionId, token, marked, sortedNumbers]); // Dependencies updated
 
   const getSortedNumbers = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -260,13 +254,14 @@ export default function RoomClient() {
   }, []);
 
   useEffect(() => {
+    // Initial data fetching when the component mounts
     handleSetHost();
     getToken();
-    getSessionId();
+    fetchAndSetGameSessionId(); // Call the combined function
     mountBingoBoard();
     getMarkedNumbers();
     getSortedNumbers();
-  }, [handleSetHost, getToken, getSessionId, mountBingoBoard, getMarkedNumbers, getSortedNumbers]);
+  }, [handleSetHost, getToken, fetchAndSetGameSessionId, mountBingoBoard, getMarkedNumbers, getSortedNumbers]);
 
 
   useEffect(() => {
@@ -329,6 +324,15 @@ export default function RoomClient() {
               >
                 Marcar Número
               </button>
+              {/* This button previously called getGameSessionId, which is now fetchAndSetGameSessionId.
+                  It might be redundant if the session ID is already handled by useEffect.
+                  Consider if you still need a manual trigger for this. */}
+              {/* <button
+                onClick={fetchAndSetGameSessionId} // Changed function name
+                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full md:w-64"
+              >
+                SessionGame
+              </button> */}
               <button
                 onClick={nextNumber}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition w-full md:w-64"
