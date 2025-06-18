@@ -20,7 +20,7 @@ export const Logo = () => {
         width={30}
         />
         <p className={cn(
-          "text-lg text-neutral-700 pt-1",
+          "text-lg text-white pt-1",
           logoFont.className
           )}>
           Unifbingo
