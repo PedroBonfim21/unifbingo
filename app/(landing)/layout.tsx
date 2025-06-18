@@ -2,11 +2,11 @@ import { Footer } from "./_components/footer";
 
 const MarketingLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="h-full bg-slate-100">
-      <main className="pt-40 pb-20 bg-slate-100">
+    <div className="min-h-screen flex flex-col bg-purple-900 text-white">
+      <main className="flex-1 flex items-center justify-center bg-purple-900">
         {children}
       </main>
-      <Footer/>
+      <Footer />
     </div>
   );
 };
