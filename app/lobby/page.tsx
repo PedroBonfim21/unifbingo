@@ -2,10 +2,9 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import LobbyClient from "./LobbyClient";
 import ProtectedRoute from "@/components/protectedRoute";
-
+import { Suspense } from "react"; // Import Suspense
 
 export default function LobbyPage() {
-
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-purple-900 flex items-center justify-center p-4">
@@ -19,8 +18,10 @@ export default function LobbyPage() {
             Voltar
           </Link>
 
-          <LobbyClient />
-
+          {/* Wrap LobbyClient in Suspense */}
+          <Suspense fallback={<div>Carregando Lobby...</div>}>
+            <LobbyClient />
+          </Suspense>
         </div>
       </div>
     </ProtectedRoute>
